@@ -50,6 +50,7 @@ type alias UrlArgs =
     , excludeDeprecated : Bool
     , headers : Dict.Dict String String
     , scalarCodecsModule : Maybe ModuleName
+    , compilerPath : Maybe String
     }
 
 
@@ -58,6 +59,7 @@ type alias FileArgs =
     , base : List String
     , outputPath : String
     , scalarCodecsModule : Maybe ModuleName
+    , compilerPath : Maybe String
     }
 
 
@@ -95,6 +97,7 @@ program =
                         |> Option.validateMap parseHeaders
                     )
                 |> with scalarCodecsOption
+                |> with compilerOption
                 |> OptionsParser.withDoc "generate files based on the schema at `url`"
                 |> OptionsParser.map FromUrl
             )
@@ -104,6 +107,7 @@ program =
                 |> with baseOption
                 |> with outputPathOption
                 |> with scalarCodecsOption
+                |> with compilerOption
                 |> OptionsParser.map FromIntrospectionFile
             )
         |> Program.add
@@ -112,6 +116,7 @@ program =
                 |> with baseOption
                 |> with outputPathOption
                 |> with scalarCodecsOption
+                |> with compilerOption
                 |> OptionsParser.map FromSchemaFile
             )
 
@@ -142,6 +147,11 @@ validateModuleName =
     Cli.Validate.regex "^[A-Z][A-Za-z_]*(\\.[A-Z][A-Za-z_]*)*$"
 
 
+compilerOption : Option.Option (Maybe String) (Maybe String) Option.BeginningOption
+compilerOption =
+    Option.optionalKeywordArg "compiler"
+
+
 type alias Flags =
     Program.FlagsIncludingArgv {}
 
@@ -158,6 +168,7 @@ init flags msg =
                 , baseModule = options.base
                 , headers = options.headers |> Json.Encode.dict identity Json.Encode.string
                 , customDecodersModule = options.scalarCodecsModule |> Maybe.map ModuleName.toString
+                , compilerPath = options.compilerPath
                 }
             )
 
@@ -168,6 +179,7 @@ init flags msg =
                 , outputPath = options.outputPath
                 , baseModule = options.base
                 , customDecodersModule = options.scalarCodecsModule |> Maybe.map ModuleName.toString
+                , compilerPath = options.compilerPath
                 }
             )
 
@@ -178,6 +190,7 @@ init flags msg =
                 , outputPath = options.outputPath
                 , baseModule = options.base
                 , customDecodersModule = options.scalarCodecsModule |> Maybe.map ModuleName.toString
+                , compilerPath = options.compilerPath
                 }
             )
 

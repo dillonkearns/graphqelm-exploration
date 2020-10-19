@@ -54,12 +54,14 @@ app.ports.schemaFromFile.subscribe(
     schemaFilePath,
     outputPath,
     baseModule,
-    customDecodersModule
+    customDecodersModule,
+    compilerPath
   }: {
     schemaFilePath: string;
     outputPath: string;
     baseModule: string[];
     customDecodersModule: string | null;
+    compilerPath: string | null;
   }) => {
     warnAndExitIfContainsNonGenerated({ baseModule, outputPath });
     const introspectionFileJson = generateOrExitIntrospectionFileFromSchema(schemaFilePath);
@@ -68,7 +70,8 @@ app.ports.schemaFromFile.subscribe(
       introspectionFileJson,
       outputPath,
       baseModule,
-      customDecodersModule
+      customDecodersModule,
+      compilerPath
     );
   }
 );
@@ -78,12 +81,14 @@ app.ports.introspectSchemaFromFile.subscribe(
     introspectionFilePath,
     outputPath,
     baseModule,
-    customDecodersModule
+    customDecodersModule,
+    compilerPath
   }: {
     introspectionFilePath: string;
     outputPath: string;
     baseModule: string[];
     customDecodersModule: string | null;
+    compilerPath: string | null;
   }) => {
     warnAndExitIfContainsNonGenerated({ baseModule, outputPath });
     const introspectionFileJson = JSON.parse(
@@ -93,7 +98,8 @@ app.ports.introspectSchemaFromFile.subscribe(
       introspectionFileJson.data || introspectionFileJson,
       outputPath,
       baseModule,
-      customDecodersModule
+      customDecodersModule,
+      compilerPath
     );
   }
 );
@@ -105,7 +111,8 @@ app.ports.introspectSchemaFromUrl.subscribe(
     outputPath,
     baseModule,
     headers,
-    customDecodersModule
+    customDecodersModule,
+    compilerPath
   }: {
     graphqlUrl: string;
     excludeDeprecated: boolean;
@@ -113,6 +120,7 @@ app.ports.introspectSchemaFromUrl.subscribe(
     baseModule: string[];
     headers: {};
     customDecodersModule: string | null;
+    compilerPath: string | null;
   }) => {
     warnAndExitIfContainsNonGenerated({ baseModule, outputPath });
 
@@ -123,7 +131,7 @@ app.ports.introspectSchemaFromUrl.subscribe(
     })
       .request(introspectionQuery, { includeDeprecated: !excludeDeprecated })
       .then(data => {
-        onDataAvailable(data, outputPath, baseModule, customDecodersModule);
+        onDataAvailable(data, outputPath, baseModule, customDecodersModule, compilerPath);
       })
       .catch(err => {
         console.log(err.response || err);
@@ -146,10 +154,11 @@ function onDataAvailable(
   data: {},
   outputPath: string,
   baseModule: string[],
-  customDecodersModule: string | null
+  customDecodersModule: string | null,
+  compilerPath: string | null
 ) {
   console.log("Generating files...");
-  app.ports.generatedFiles.subscribe(async function(generatedFile: {
+  app.ports.generatedFiles.subscribe(async function (generatedFile: {
     [s: string]: string;
   }) {
     removeGenerated(prependBasePath("/", baseModule, outputPath));
@@ -171,7 +180,8 @@ function onDataAvailable(
       verifyCustomCodecsFileIsValid(
         outputPath,
         baseModule,
-        customDecodersModule
+        customDecodersModule,
+        compilerPath
       );
     }
     console.log("Success!");
@@ -182,7 +192,8 @@ function onDataAvailable(
 function verifyCustomCodecsFileIsValid(
   outputPath: string,
   baseModule: string[],
-  customDecodersModule: string
+  customDecodersModule: string,
+  compilerPath: string | null
 ) {
   const verifyDecodersFile = path.join(
     outputPath,
@@ -190,8 +201,31 @@ function verifyCustomCodecsFileIsValid(
     "VerifyScalarCodecs.elm"
   );
 
+  if (!compilerPath) {
+    try {
+      childProcess.execSync('elm --version');
+    } catch (error) {
+      console.error(
+        `Cannot find elm executable, make sure it is installed.
+(If elm is not on your path or is called something different, try using the --compiler flag.)`
+      );
+
+      process.exit(1);
+    }
+  } else {
+    try {
+      childProcess.execSync(`${compilerPath} --version`);
+    } catch (error) {
+      console.error('The --compiler option must be given a path to an elm executable.');
+
+      process.exit(1);
+    }
+  }
+
+  const customOrDefaultCompilerPath = compilerPath ? compilerPath : 'elm';
+
   try {
-    childProcess.execSync(`elm make ${verifyDecodersFile} --output=/dev/null`, {
+    childProcess.execSync(`${customOrDefaultCompilerPath} make ${verifyDecodersFile} --output=/dev/null`, {
       stdio: "pipe"
     });
   } catch (error) {

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- `--compiler <compiler>` option to the CLI. This allows you to pass the path
+  to the Elm compiler that you would like to use for verifying your custom scalar
+  codecs. By default, the CLI will use the Elm compiler (`elm`) in your PATH.
+
 ## [4.0.3] - 2020-05-31
 
 ### Changed
